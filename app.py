@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from core.news_client import NewsClient
 from core.engine import StrategicEngine
-from core.report_generator import generate_pdf # <--- Added Import
+from core.report_generator import generate_pdf
 from config.settings import Settings
 
 st.set_page_config(page_title="JBS Strategic Command", layout="wide")
@@ -61,6 +61,12 @@ def main():
     st.title("🛡️ JBS Strategic Intelligence Command Center")
     st.caption("Strategic Market Scanning | Vision 2030 Alignment")
 
+    # --- 1. INITIALIZE SESSION STATE ---
+    # This acts as the "Memory" for the app
+    if 'analysis_data' not in st.session_state:
+        st.session_state.analysis_data = None
+
+    # --- 2. HANDLE BUTTON CLICK ---
     if run_btn:
         with st.spinner("JBS AI is synthesizing competitive intelligence..."):
             # Instantiate classes
@@ -71,39 +77,52 @@ def main():
             news = client.fetch_market_news(unit)
             score, memo = engine.analyze_market_intelligence(unit, news)
             
-            # --- NEW: PDF GENERATION ---
-            pdf_bytes = generate_pdf(unit, score, memo, news)
-            
-            st.sidebar.download_button(
-                label="📄 Download Executive Brief",
-                data=pdf_bytes,
-                file_name=f"JBS_Strategy_Brief_{unit}.pdf",
-                mime="application/pdf"
-            )
-            # ---------------------------
-            
-            # Row 1: The "Boardroom" Metrics
-            m1, m2, m3 = st.columns(3)
-            with m1: st.markdown(f"<div class='metric-box'><b>Vision 2030 Goal</b><br>PKR 100B</div>", unsafe_allow_html=True)
-            with m2: st.markdown(f"<div class='metric-box'><b>Focus Market</b><br>KSA / Global</div>", unsafe_allow_html=True)
-            with m3: st.markdown(f"<div class='metric-box'><b>Core Pivot</b><br>AI & Computer Vision</div>", unsafe_allow_html=True)
+            # SAVE results to Session State
+            st.session_state.analysis_data = {
+                'unit': unit,
+                'news': news,
+                'score': score,
+                'memo': memo
+            }
 
-            # Row 2: The Gauge (Updated to fix warnings)
-            st.plotly_chart(create_gauge(score), width="stretch")
-            
-            # Row 3: Deep Dive Analysis
-            col1, col2 = st.columns([1, 2], gap="large")
-            with col1:
-                st.subheader("📡 Filtered Market Signals")
-                if news:
-                    for art in news[:4]:
-                        st.info(f"**{art['source']['name']}**: {art['title']}")
-                else:
-                    st.info("Scanning for external signals...")
-            
-            with col2:
-                st.subheader("📝 Strategic Memo")
-                st.markdown(f"<div class='memo-card'>{memo}</div>", unsafe_allow_html=True)
+    # --- 3. DISPLAY DATA FROM MEMORY ---
+    # We check if data exists in session_state so it persists after download
+    if st.session_state.analysis_data:
+        data = st.session_state.analysis_data
+        
+        # Re-generate PDF bytes on every rerun (fast operation)
+        pdf_bytes = generate_pdf(data['unit'], data['score'], data['memo'], data['news'])
+        
+        # Sidebar Download Button
+        st.sidebar.download_button(
+            label="📄 Download Executive Brief",
+            data=pdf_bytes,
+            file_name=f"JBS_Strategy_Brief_{data['unit']}.pdf",
+            mime="application/pdf"
+        )
+        
+        # Row 1: The "Boardroom" Metrics
+        m1, m2, m3 = st.columns(3)
+        with m1: st.markdown(f"<div class='metric-box'><b>Vision 2030 Goal</b><br>PKR 100B</div>", unsafe_allow_html=True)
+        with m2: st.markdown(f"<div class='metric-box'><b>Focus Market</b><br>KSA / Global</div>", unsafe_allow_html=True)
+        with m3: st.markdown(f"<div class='metric-box'><b>Core Pivot</b><br>AI & Computer Vision</div>", unsafe_allow_html=True)
+
+        # Row 2: The Gauge
+        st.plotly_chart(create_gauge(data['score']), width="stretch")
+        
+        # Row 3: Deep Dive Analysis
+        col1, col2 = st.columns([1, 2], gap="large")
+        with col1:
+            st.subheader("📡 Filtered Market Signals")
+            if data['news']:
+                for art in data['news'][:4]:
+                    st.info(f"**{art['source']['name']}**: {art['title']}")
+            else:
+                st.info("Scanning for external signals...")
+        
+        with col2:
+            st.subheader("📝 Strategic Memo")
+            st.markdown(f"<div class='memo-card'>{data['memo']}</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
