@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from core.news_client import NewsClient
 from core.engine import StrategicEngine
+from core.report_generator import generate_pdf # <--- Added Import
 from config.settings import Settings
 
 st.set_page_config(page_title="JBS Strategic Command", layout="wide")
@@ -27,7 +28,6 @@ st.markdown(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# --- MISSING FUNCTION ADDED HERE ---
 def create_gauge(score):
     """Generates the Strategic Opportunity Gauge for JBS Executives."""
     fig = go.Figure(go.Indicator(
@@ -47,7 +47,6 @@ def create_gauge(score):
     ))
     fig.update_layout(height=280, margin=dict(t=50, b=10), paper_bgcolor='rgba(0,0,0,0)')
     return fig
-# -----------------------------------
 
 def main():
     # Sidebar logo handling
@@ -72,14 +71,25 @@ def main():
             news = client.fetch_market_news(unit)
             score, memo = engine.analyze_market_intelligence(unit, news)
             
+            # --- NEW: PDF GENERATION ---
+            pdf_bytes = generate_pdf(unit, score, memo, news)
+            
+            st.sidebar.download_button(
+                label="📄 Download Executive Brief",
+                data=pdf_bytes,
+                file_name=f"JBS_Strategy_Brief_{unit}.pdf",
+                mime="application/pdf"
+            )
+            # ---------------------------
+            
             # Row 1: The "Boardroom" Metrics
             m1, m2, m3 = st.columns(3)
             with m1: st.markdown(f"<div class='metric-box'><b>Vision 2030 Goal</b><br>PKR 100B</div>", unsafe_allow_html=True)
             with m2: st.markdown(f"<div class='metric-box'><b>Focus Market</b><br>KSA / Global</div>", unsafe_allow_html=True)
             with m3: st.markdown(f"<div class='metric-box'><b>Core Pivot</b><br>AI & Computer Vision</div>", unsafe_allow_html=True)
 
-            # Row 2: The Gauge (Function now exists!)
-            st.plotly_chart(create_gauge(score), use_container_width=True)
+            # Row 2: The Gauge (Updated to fix warnings)
+            st.plotly_chart(create_gauge(score), width="stretch")
             
             # Row 3: Deep Dive Analysis
             col1, col2 = st.columns([1, 2], gap="large")
