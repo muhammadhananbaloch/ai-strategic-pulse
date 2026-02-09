@@ -76,6 +76,7 @@ def main():
             # Fetch GLOBAL Data
             news = client.fetch_global_innovation(selected_topics)
             score, memo = engine.analyze_global_trends(selected_topics, news)
+            # score, memo = {85, "Sample memo content for demonstration purposes."}  # TEMP MOCK
             
             st.session_state.analysis_data = {
                 'unit': ", ".join(selected_topics), # Used as title in PDF

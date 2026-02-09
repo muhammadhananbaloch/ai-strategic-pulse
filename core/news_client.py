@@ -8,74 +8,93 @@ class NewsClient:
         self.api_key = Settings.NEWS_API_KEY
         self.base_url = "https://newsapi.org/v2/everything"
         
-        # High-Volume Keywords
+        # OPTIMIZED QUERIES: Focused on "Market", "Business", and "Tech" to avoid lifestyle noise
         self.STRATEGIC_THEMES = {
             "Banking & FinTech AI": (
-                "Fintech OR Digital Banking OR AI Finance OR Open Banking OR "
-                "Future of Payments OR Blockchain Finance OR Generative AI Banking"
+                '"Fintech Market" OR "Digital Banking Trends" OR "AI in Finance" OR '
+                '"Open Banking" OR "Future of Payments" OR "Generative AI Banking" OR '
+                '"Blockchain Finance" OR "Bank Automation"'
             ),
             "Smart City & Surveillance": (
-                "Smart Cities OR Urban Tech OR AI Surveillance OR Smart Infrastructure OR "
-                "Intelligent Transport OR Public Safety Tech OR GovTech"
+                '"Smart City Market" OR "Urban Tech Investment" OR "AI Surveillance" OR '
+                '"Intelligent Transport System" OR "GovTech Trends" OR "Public Safety Tech" OR '
+                '"Smart Infrastructure"'
             ),
             "EdTech & Learning": (
-                "EdTech OR Future of Learning OR AI Education OR Digital Classrooms OR "
-                "Education Technology OR Personalized Learning OR Reskilling"
+                '"EdTech Market" OR "AI in Education" OR "Corporate Reskilling" OR '
+                '"Digital Classroom Market" OR "Learning Management Systems" OR '
+                '"Educational Technology Trends" OR "Personalized Learning AI"'
             ),
             "Enterprise Automation": (
-                "Enterprise AI OR Digital Transformation OR Business Automation OR "
-                "Future of Work OR RPA OR Artificial Intelligence Business OR SaaS Trends"
+                '"Enterprise AI" OR "Business Process Automation" OR "RPA Market" OR '
+                '"Digital Transformation Trends" OR "SaaS Growth" OR "Future of Work Tech" OR '
+                '"AI Workforce"'
             ),
             "Energy & Power Tech": (
-                "Green Tech OR Clean Energy OR Smart Grid OR Renewable Technology OR "
-                "Energy Storage OR Climate Tech OR Sustainable Energy"
+                '"Clean Energy Market" OR "Smart Grid Technology" OR "Renewable Energy Investment" OR '
+                '"Energy Storage Trends" OR "Green Tech Innovation" OR "Climate Tech Startup"'
             ),
             "Healthcare & Life Sciences": (
-                "Digital Health OR MedTech OR AI Healthcare OR Biotech Innovation OR "
-                "Smart Hospitals OR Telemedicine OR HealthTech"
+                '"Digital Health Market" OR "MedTech Innovation" OR "AI Drug Discovery" OR '
+                '"Telemedicine Trends" OR "Smart Hospital" OR "HealthTech Investment" OR '
+                '"Medical Robotics"'
             )
         }
 
-    def _filter_articles(self, articles, topic_key):
+    def _filter_articles(self, articles):
         """
-        The Gatekeeper: Aggressively removes noise (Sports, Cars, Supplements, TV).
+        The Gatekeeper: Aggressively removes Politics, Sports, Cars, and Lifestyle noise.
         """
-        # STRICTER Whitelist: Must contain strong tech/business signals
+        # STRICT Whitelist: Article MUST have at least one of these to pass
         valid_keywords = [
-            "AI", "Artificial Intelligence", "GenAI", "LLM", "Machine Learning",
-            "SaaS", "Enterprise", "Startup", "Equity", "Revenue", "Investment",
-            "Digital Transformation", "Cloud", "Cybersecurity", "Automation",
-            "Fintech", "Blockchain", "Robot", "Smart City", "Infrastructure",
-            "Platform", "Software", "Data Center", "API", "Algorithm"
+            "market", "growth", "launch", "tech", "ai", "data", "digital", 
+            "system", "platform", "enterprise", "industry", "startup", "invest", 
+            "funding", "revenue", "software", "automation", "cyber", "cloud", 
+            "smart", "transform", "solution", "service", "sector", "trend"
         ]
         
-        # EXPANDED Blocklist based on your debug logs
+        # EXPANDED Blocklist: The "Noise Killer"
         blocklist = [
-            # Sports
-            "NFL", "NBA", "Super Bowl", "Cricket", "Football", "Score", "Highlights",
-            "Lakers", "Warriors", "Spurs", "Arsenal", "Premier League",
-            # Entertainment
-            "Movie", "Trailer", "Episode", "Season", "Celeb", "Actor", "Actress", 
-            "Concert", "Review", "Hallmark", "Netflix", "HBO", "Disney",
-            # Retail / Lifestyle / Cars
-            "Deal", "Discount", "Coupon", "Recipe", "Diet", "Supplement", "Vitamin",
-            "Porsche", "Chevrolet", "Lexus", "Infiniti", "Toyota", "Ford", "0-60",
-            "Decor", "Fashion", "Beauty", "Skincare", "K-Pop",
-            # Dev Noise
-            "PyPI", "GitHub", "Commit", "Stack Overflow"
+            # Politics & Crime (Huge source of noise)
+            "trump", "biden", "kamala", "election", "voter", "poll", "senate", "congress",
+            "democrat", "republican", "lawsuit", "court", "judge", "police", "arrest", 
+            "shooting", "murder", "crime", "war", "gaza", "israel", "ukraine", "russia",
+            "strike", "protest", "prison", "jail",
+            
+            # Sports (Olympics were clogging EdTech)
+            "olympic", "medal", "game", "match", "score", "league", "cup", "nfl", "nba",
+            "football", "cricket", "soccer", "tennis", "athlete", "coach", "stadium",
+            
+            # Cars (Mercedes was clogging everything)
+            "mercedes", "bmw", "ford", "toyota", "honda", "lexus", "sedan", "suv", "truck",
+            "4matic", "engine", "horsepower", "dealer", "drive",
+            
+            # Lifestyle / Home / Celeb
+            "kitchen", "decor", "home", "garden", "recipe", "diet", "weight", "fashion",
+            "beauty", "movie", "film", "star", "actor", "actress", "concert", "ticket",
+            "episode", "season", "show", "netflix", "hbo", "disney", "review"
         ]
 
         clean_list = []
+        seen_titles = set()
+
         for art in articles:
-            # Combine title and description for checking
-            text_blob = (str(art.get('title', '')) + " " + str(art.get('description', ''))).lower()
+            # Clean text for checking
+            title = str(art.get('title', '')).strip()
+            desc = str(art.get('description', '')).strip()
+            text_blob = (title + " " + desc).lower()
             
-            # 1. Kill Noise
-            if any(bad.lower() in text_blob for bad in blocklist):
+            # 1. Deduplicate
+            if title in seen_titles:
+                continue
+            seen_titles.add(title)
+            
+            # 2. Kill Noise (If any bad word is present)
+            if any(bad in text_blob for bad in blocklist):
                 continue
                 
-            # 2. Require Signal
-            if any(good.lower() in text_blob for good in valid_keywords):
+            # 3. Require Business Signal (Must have valid keyword)
+            if any(good in text_blob for good in valid_keywords):
                 clean_list.append(art)
                 
         return clean_list
@@ -83,14 +102,15 @@ class NewsClient:
     def fetch_global_innovation(self, selected_topics):
         if not selected_topics: return []
             
+        # Join queries with OR
         queries = [self.STRATEGIC_THEMES.get(topic, topic) for topic in selected_topics]
         combined_query = " OR ".join(f"({q})" for q in queries)
         
         params = {
             'q': combined_query,
             'language': 'en',
-            'sortBy': 'publishedAt',
-            'pageSize': 100, # Fetch huge pool
+            'sortBy': 'publishedAt', # Newest first
+            'pageSize': 100,         # Maximize pool for filtering
             'apiKey': self.api_key
         }
 
@@ -100,20 +120,19 @@ class NewsClient:
             
             if data.get("status") == "ok" and data.get("totalResults", 0) > 0:
                 raw_articles = data['articles']
-                print(f"[DEBUG] Fetched {len(raw_articles)} articles for topics: {', '.join(selected_topics)}")
+                print(f"[DEBUG] Raw Fetch: {len(raw_articles)} articles.")
                 
                 # Apply Strict Filter
-                filtered_articles = self._filter_articles(raw_articles, selected_topics)
-                print(f"[DEBUG] {len(filtered_articles)} articles remain after filtering.")
+                filtered_articles = self._filter_articles(raw_articles)
+                print(f"[DEBUG] After Filtering: {len(filtered_articles)} clean articles.")
                 
                 # If we have enough clean articles, shuffle and return
                 if len(filtered_articles) > 0:
-                    # Randomize to ensure freshness every click
                     random.shuffle(filtered_articles)
-                    print(f"[DEBUG] Titles {[a['title'] for a in filtered_articles[:15]]}")
-                    return filtered_articles[:15]
+                    # print(f"[DEBUG] Titles {[a['title'] for a in filtered_articles[:15]]}")
+                    return filtered_articles[:15] # Return top 15 clean ones
                 
-            # Fallback only if strict filter killed everything
+            print("[DEBUG] No clean results found. Switching to Mock Data.")
             return self._get_global_mock_data(selected_topics)
 
         except Exception as e:
