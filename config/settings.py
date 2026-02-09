@@ -31,7 +31,11 @@ class Settings:
         "Jaffer Business Systems", 
         "JBS Digital Transformation",
         "JBS Infrastructure",
-        "JBS Arabia"
+        "JBS Arabia",
+        "JBS Americas & Europe",
+        "ENA - An IoT & Power Solutions Company",
+        "Blutech - Data Center & Cloud Services",
+        "Hysab Kytab - Fintech Solutions"
     ]
 
     # Path to assets

@@ -6,43 +6,59 @@ class StrategicEngine:
     def __init__(self):
         self.client = genai.Client(api_key=Settings.GEMINI_API_KEY)
 
-    def analyze_market_intelligence(self, unit_name: str, news_data: list):
+    def analyze_global_trends(self, topics, news_data):
         if not news_data:
-            return 50, "No high-impact signals found. Recommend scanning KSA government tenders manually."
+            return 50, "No data available. Recommend expanding search parameters."
 
-        context = "\n".join([f"SIGNAL: {a['title']}" for a in news_data[:12]])
+        # Format news for the prompt
+        context = "\n".join([f"- {a['title']}: {a['description']}" for a in news_data[:10]])
+        topic_str = ", ".join(topics)
         
-        # PROMPT: Hardcoding the JBS Vision 2030 Report Context
         prompt = f"""
-        Act as the JBS Strategic Intelligence Lead. 
-        JBS GOAL: PKR 100 Billion Revenue by 2030. 
-        JBS PIVOT: Transition from hardware vendor to AI & Computer Vision leader.
-        JBS FOCUS: Pakistan Trust vs. KSA/Global Innovation.
-        
-        DATA TO FILTER:
+        ROLE: Global Innovation Consultant for Jaffer Business Systems (JBS).
+        MISSION: Help JBS hit PKR 100 Billion Revenue by adopting WORLD-CLASS technology.
+        FOCUS AREA: {topic_str}
+
+        GLOBAL INTEL (What the world's best are doing):
         {context}
-        
+
         TASK:
-        1. Throw away generic tech news.
-        2. Identify GAPS where competitors like Systems Ltd or 10Pearls are leading.
-        3. Recommend a specific 'Human-Centric AI' move to counter rivals.
+        1. Analyze these global trends.
+        2. Bridge the gap: How can JBS bring this SPECIFIC technology to Pakistan?
+        3. Create a strategy that makes local competitors look outdated.
+
+        OUTPUT FORMAT:
+        SCORE: [0-100 Global Alignment Score]
         
-        RESPONSE FORMAT:
-        SCORE: [0-100 Opportunity Score]
         MEMO:
-        🚀 VISION 2030 IMPACT: (How this hits our PKR 100B target)
-        🚩 COMPETITIVE GAP: (Specific moves by rivals in {unit_name})
-        💡 THE JBS 'WORKS BETTER' MOVE: (Actionable advice for the KSA/Local sales team)
+        🚀 VISION 2030 IMPACT: 
+        (Explain how adopting these global standards captures high-value revenue for JBS.)
+        
+        🚩 COMPETITIVE GAP ANALYSIS:
+        (Compare JBS not just to locals, but to GLOBAL standards. "Local rivals are doing X, but Global leaders are doing Y. JBS must do Y.")
+        
+        💡 THE 'WORKS BETTER' STRATEGIC MOVE:
+        (Propose a specific product/service JBS should launch NOW to bring this global tech to the local market.)
         """
         
-        response = self.client.models.generate_content(
-            model=Settings.MODEL_ID,
-            contents=prompt
-        )
-        
-        res_text = response.text
-        score_match = re.search(r"SCORE:\s*(\d+)", res_text)
-        score = int(score_match.group(1)) if score_match else 50
-        memo = res_text.split("MEMO:")[-1].strip() if "MEMO:" in res_text else res_text
-        
-        return score, memo
+        try:
+            response = self.client.models.generate_content(
+                model=Settings.MODEL_ID,
+                contents=prompt
+            )
+            res_text = response.text
+            
+            # Extract Score
+            score_match = re.search(r"SCORE:\s*(\d+)", res_text)
+            score = int(score_match.group(1)) if score_match else 85
+            
+            # Extract Memo
+            if "MEMO:" in res_text:
+                memo = res_text.split("MEMO:")[-1].strip()
+            else:
+                memo = res_text
+                
+            return score, memo
+
+        except Exception as e:
+            return 0, f"Error generating strategy: {str(e)}"
